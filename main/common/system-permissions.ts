@@ -80,8 +80,7 @@ const markScreenCapturePermissionPrompted = () => {
   writeFileSync(hasPromptedFilePath, '');
 };
 
-// The system prompt is only shown once per app by macOS; afterwards the user has to enable Kap in System Preferences manually.
-// Electron has no `askForMediaAccess('screen')`, but enumerating screen sources triggers the prompt.
+// Electron has no `askForMediaAccess('screen')`, but enumerating screen sources triggers the system prompt.
 const requestScreenCaptureAccess = () => {
   desktopCapturer.getSources({types: ['screen'], thumbnailSize: {width: 1, height: 1}}).catch(() => {
     // Ignore, we only care about the side effect of macOS showing the prompt
@@ -103,10 +102,10 @@ export const ensureScreenCapturePermissions = (fallback = screenCaptureFallback)
 
   const hadAsked = hasPromptedForScreenCapturePermission();
 
-  if (!hadAsked) {
-    requestScreenCaptureAccess();
-    markScreenCapturePermissionPrompted();
-  }
+  // Always request: macOS only shows the prompt while it has no decision recorded,
+  // so this is what brings it back after the permission was reset or the app was re-signed
+  requestScreenCaptureAccess();
+  markScreenCapturePermissionPrompted();
 
   fallback({hasAsked: !hadAsked});
   return false;
