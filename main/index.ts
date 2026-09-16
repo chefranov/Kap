@@ -124,6 +124,13 @@ const checkForUpdates = () => {
   checkForUpdates();
 })();
 
+// Re-open the cropper when the app is activated (e.g. clicked in the Dock or launched again)
+app.on('activate', () => {
+  if (!windowManager.cropper?.isOpen()) {
+    windowManager.cropper?.open();
+  }
+});
+
 app.on('window-all-closed', (event: any) => {
   app.dock.hide();
   event.preventDefault();
