@@ -1,5 +1,7 @@
-import {systemPreferences, shell, dialog, app} from 'electron';
-const {hasScreenCapturePermission, hasPromptedForPermission} = require('mac-screen-capture-permissions');
+import {systemPreferences, shell, dialog, app, desktopCapturer} from 'electron';
+import {existsSync, mkdirSync, writeFileSync} from 'fs';
+import path from 'path';
+import macosVersion from 'macos-version';
 const {ensureDockIsShowing} = require('../utils/dock');
 
 let isDialogShowing = false;
@@ -66,24 +68,46 @@ export const hasMicrophoneAccess = () => getMicrophoneAccess() === 'granted';
 
 // Screen Capture (10.15 and newer)
 
+const screenCapturePermissionExists = macosVersion.isGreaterThanOrEqualTo('10.15');
+
+// Same marker file the `mac-screen-capture-permissions` package used, so existing installs don't get prompted twice
+const hasPromptedFilePath = path.join(app.getPath('userData'), '.has-app-requested-screen-capture-permissions');
+
+const hasPromptedForScreenCapturePermission = () => existsSync(hasPromptedFilePath);
+
+const markScreenCapturePermissionPrompted = () => {
+  mkdirSync(path.dirname(hasPromptedFilePath), {recursive: true});
+  writeFileSync(hasPromptedFilePath, '');
+};
+
+// The system prompt is only shown once per app by macOS; afterwards the user has to enable Kap in System Preferences manually.
+// Electron has no `askForMediaAccess('screen')`, but enumerating screen sources triggers the prompt.
+const requestScreenCaptureAccess = () => {
+  desktopCapturer.getSources({types: ['screen'], thumbnailSize: {width: 1, height: 1}}).catch(() => {
+    // Ignore, we only care about the side effect of macOS showing the prompt
+  });
+};
+
 const screenCaptureFallback = promptSystemPreferences({
   message: 'Kap cannot record the screen.',
   detail: 'Kap requires screen capture access to be able to record the screen. You can grant this in the System Preferences. Afterwards, launch Kap for the changes to take effect.',
   systemPreferencesPath: 'Privacy_ScreenCapture'
 });
 
+export const hasScreenCaptureAccess = () => !screenCapturePermissionExists || systemPreferences.getMediaAccessStatus('screen') === 'granted';
+
 export const ensureScreenCapturePermissions = (fallback = screenCaptureFallback) => {
-  const hadAsked = hasPromptedForPermission();
-
-  const hasAccess = hasScreenCapturePermission();
-
-  if (hasAccess) {
+  if (hasScreenCaptureAccess()) {
     return true;
+  }
+
+  const hadAsked = hasPromptedForScreenCapturePermission();
+
+  if (!hadAsked) {
+    requestScreenCaptureAccess();
+    markScreenCapturePermissionPrompted();
   }
 
   fallback({hasAsked: !hadAsked});
   return false;
 };
-
-export const hasScreenCaptureAccess = () => hasScreenCapturePermission();
-

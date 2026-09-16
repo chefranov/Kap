@@ -1,20 +1,9 @@
 import {Menu, MenuItem, nativeImage} from 'electron';
 import Store from 'electron-store';
 import {windowManager} from '../windows/manager';
+import {getWindows, activateWindow, getAppIconListByPid, MacWindow} from './mac-windows';
 
-const {getWindows, activateWindow} = require('mac-windows');
-const {getAppIconListByPid} = require('node-mac-app-icon');
-
-export interface MacWindow {
-  pid: number;
-  ownerName: string;
-  name: string;
-  width: number;
-  height: number;
-  x: number;
-  y: number;
-  number: number;
-}
+export type {MacWindow};
 
 const APP_BLACKLIST = [
   'Kap',
@@ -35,14 +24,8 @@ const usageHistory = store.get('appUsageHistory', {});
 const isValidApp = ({ownerName}: MacWindow) => !APP_BLACKLIST.includes(ownerName);
 
 const getWindowList = async () => {
-  const windows = await getWindows() as MacWindow[];
-  const images = await getAppIconListByPid(windows.map(win => win.pid), {
-    size: 16,
-    failOnError: false
-  }) as Array<{
-    pid: number;
-    icon: Buffer;
-  }>;
+  const windows = await getWindows();
+  const images = await getAppIconListByPid(windows.map(win => win.pid), {size: 16});
 
   let maxLastUsed = 0;
 

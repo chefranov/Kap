@@ -1,5 +1,5 @@
 import {hasMicrophoneAccess} from '../common/system-permissions';
-import * as audioDevices from 'macos-audio-devices';
+import {getInputDevices, getDefaultInputDeviceSync} from './audio-devices';
 import {settings} from '../common/settings';
 import {defaultInputDeviceId} from '../common/constants';
 import Sentry from './sentry';
@@ -13,7 +13,7 @@ export const getAudioDevices = async () => {
   }
 
   try {
-    const devices = await audioDevices.getInputDevices();
+    const devices = await getInputDevices();
 
     return devices.sort((a, b) => {
       if (a.transportType === b.transportType) {
@@ -50,7 +50,7 @@ export const getAudioDevices = async () => {
 
 export const getDefaultInputDevice = () => {
   try {
-    const device = audioDevices.getDefaultInputDevice.sync();
+    const device = getDefaultInputDeviceSync();
     return {
       id: device.uid,
       name: device.name
